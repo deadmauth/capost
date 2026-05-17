@@ -1,0 +1,564 @@
+import React, { useState } from 'react';
+import { 
+  Copy, Facebook, Instagram, Video, Loader2, Sparkles, 
+  CheckCircle2, AlertCircle, Globe, Youtube, Smile, 
+  AlignLeft, LayoutTemplate, Utensils, ShoppingBag, 
+  Map, Briefcase, Zap, User, Users, Megaphone, Check 
+} from 'lucide-react';
+
+// ==========================================
+// ส่วนตั้งค่า API (ระบบจะใส่ Key ให้ตอนรัน)
+// ==========================================
+const apiKey = ""; 
+
+export default function App() {
+  // ==========================================
+  // State สำหรับเก็บข้อมูลแบบแบ่งหมวดหมู่ (Step-based)
+  // ==========================================
+  const [formData, setFormData] = useState({
+    restaurantName: '',
+    reviewDetails: ''
+  });
+  
+  // 🎯 ข้อมูลหลัก
+  const [category, setCategory] = useState('ร้านอาหาร (Food)');
+  
+  // 🎭 ตัวตนผู้เล่า (POV & Gender) - อัปเดตใหม่
+  const [pov, setPov] = useState('บุคคลที่ 1 (เล่าประสบการณ์ตัวเอง / ร้านโปรโมทตัวเอง)');
+  const [gender, setGender] = useState('หญิง (ฉัน/เรา/ค่ะ/คะ)');
+
+  // 🎨 สไตล์การเขียน
+  const [language, setLanguage] = useState('Thai');
+  const [tone, setTone] = useState('เป็นกันเอง (Friendly)');
+  const [format, setFormat] = useState('แบ่งหัวข้อ (Structured)');
+  const [length, setLength] = useState('พอดีๆ (Medium)');
+  
+  const [captions, setCaptions] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [copiedPlatform, setCopiedPlatform] = useState('');
+  
+  const [activeTab, setActiveTab] = useState('facebook');
+
+  // ==========================================
+  // ฟังก์ชันจัดการการคัดลอกข้อความ
+  // ==========================================
+  const handleCopy = (text, platform) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.position = "fixed";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+      document.execCommand('copy');
+      setCopiedPlatform(platform);
+      setTimeout(() => setCopiedPlatform(''), 2000);
+    } catch (err) {
+      console.error('Unable to copy', err);
+    }
+    
+    document.body.removeChild(textArea);
+  };
+
+  // ==========================================
+  // ฟังก์ชันเรียก API (อัปเดต Prompt ปี 2026)
+  // ==========================================
+  const generateCaptionsWithRetry = async (retryCount = 0) => {
+    const delays = [1000, 2000, 4000, 8000, 16000];
+    
+    const prompt = `
+      บริบทปัจจุบัน: เดือนพฤษภาคม ปี 2026 (May 2026)
+      คุณคือนักรีวิวและคอนเทนต์ครีเอเตอร์มืออาชีพ ที่เขียนแคปชั่นได้ดึงดูดใจและ "เป็นธรรมชาติเหมือนมนุษย์เขียน 100%"
+      จงสร้างแคปชั่นจากข้อมูลต่อไปนี้:
+
+      🎯 [ข้อมูลหลัก]
+      - หมวดหมู่ของเนื้อหา: ${category}
+      - ชื่อสิ่งที่รีวิว/โปรโมท: ${formData.restaurantName}
+      - ข้อมูลดิบจากผู้ใช้งาน: ${formData.reviewDetails}
+
+      🎭 [ตัวตนผู้เล่า]
+      - มุมมองการเล่าเรื่อง (POV): ${pov}
+      - สรรพนามและเพศผู้เล่า: ${gender}
+
+      🎨 [สไตล์การเขียน]
+      - ภาษา: ${language}
+      - น้ำเสียง (Tone of Voice): ${tone}
+      - ความยาวเนื้อหา: ${length}
+      
+      ⚠️ กฎเหล็กที่ต้องทำตามอย่างเคร่งครัด (Anti-AI & Perspective Rules):
+      1. ห้ามใช้คำประดิษฐ์หรือคำลิเกเด็ดขาด (เช่น ดื่มด่ำ, รังสรรค์, ตอบโจทย์, ยกระดับ, สัมผัสประสบการณ์, ปฏิเสธไม่ได้ว่า, ที่สุดแห่งยุค, ลงตัว)
+      2. จัดการมุมมอง (POV): 
+         - ถ้าเป็น "บุคคลที่ 1" ให้เล่าในฐานะตัวเองไปเจอมา หรือเจ้าของแบรนด์พูดเอง
+         - ถ้าเป็น "บุคคลที่ 3" ให้พูดถึงในเชิงอ้างอิงถึงบุคคลอื่น/ร้านอื่น (เช่น ร้านเขาดีมาก, แบรนด์นั้นเขาทำถึง)
+      3. จัดการสรรพนาม: ใช้คำแทนตัวและหางเสียง (ครับ/ค่ะ/คะ) ให้ตรงกับ '${gender}' อย่างเคร่งครัด ห้ามใช้สลับกัน
+      4. อัปเดตศัพท์ 2026: ${tone === 'ศัพท์กะเทย / GenZ (Sassy / GenZ Slang)' ? 'ใช้ศัพท์กะเทยและวัยรุ่น GenZ ฮิตๆ ในยุค 2024-2026 อย่างเป็นธรรมชาติ (เช่น โฮ่ง, ทำถึง, จึ้ง, ฉ่ำ, ตัวมารดา, นอยด์อ่า, คุณน้า, ช็อตฟีล, อ่อม, เลิศเกิน) จัดเต็มแต่ลื่นไหล' : 'ใช้ภาษาพูดที่ลื่นไหล สมจริง'}
+      5. ${tone === 'ภาษาลู (Lu Language)' ? 'สำคัญมาก: แปลงคำศัพท์ที่เป็นใจความสำคัญให้เป็น "ภาษาลู" ให้ถูกต้องตามหลักการผวนคำ เพื่ออรรถรส' : ''}
+      6. ต้องเว้นบรรทัดให้กว้างและอ่านง่ายสบายตา
+
+      🚨 เงื่อนไขการจัดรูปแบบ (Format):
+      ${format === 'เล่าเรื่องต่อเนื่อง (Storytelling)' 
+        ? `- ❌ ห้ามเขียนแยกเป็นข้อๆ และ ห้ามใส่หัวข้อเด็ดขาด
+           - ✅ เล่าเรื่องราวร้อยเรียงต่อกันเป็นเนื้อความเดียวกันอย่างลื่นไหล เหมือนคนรีวิวหรือเล่าประสบการณ์จริง
+           - ใส่ 🏷️ แฮชแท็กไว้ด้านล่างสุด`
+        : `ต้องแบ่งเป็น 5 ส่วนชัดเจน (พร้อมอีโมจิ):
+           - 📝 รีวิว/รายละเอียด: เล่าจุดเด่น (มี Hook ดึงดูด)
+           - 📊 คะแนน/รีวิวการใช้งาน: ให้คะแนนเป็นข้อๆ (ปรับหัวข้อให้เข้ากับ '${category}')
+           - 💰 ราคา/โปรโมชัน: สรุปความคุ้มค่า
+           - 📍 พิกัด/ช่องทาง: ช่องทางการซื้อหรือแผนที่
+           - 🏷️ แฮชแท็ก: แฮชแท็กที่ตรงกลุ่มเป้าหมาย`
+      }
+
+      สไตล์ของแต่ละแพลตฟอร์ม:
+      - Facebook: เล่าเรื่องราวครบถ้วน น่าติดตาม
+      - Instagram: เน้นภาพลักษณ์สวยงาม มี Score board ชัดเจน
+      - TikTok: พาดหัวต้องฮุก (Hook) แรงๆ สั้นกระชับ นำเสนอแบบคลิปวิดีโอ
+      - YouTube: สำหรับช่อง Description ใต้วิดีโอ เล่าภาพรวมให้น่าติดตาม และเน้น SEO
+    `;
+
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      systemInstruction: { 
+        parts: [{ text: "คุณคือ Content Creator มืออาชีพในปี 2026 เข้าใจ Slang และการทำ Social Media Marketing ทุกรูปแบบ" }] 
+      },
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            facebook: { type: "STRING" },
+            instagram: { type: "STRING" },
+            tiktok: { type: "STRING" },
+            youtube: { type: "STRING" }
+          }
+        }
+      }
+    };
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }
+      );
+
+      if (!response.ok) throw new Error('API Request Failed');
+
+      const result = await response.json();
+      const jsonText = result.candidates[0].content.parts[0].text;
+      return JSON.parse(jsonText);
+
+    } catch (err) {
+      if (retryCount < delays.length) {
+        await new Promise(resolve => setTimeout(resolve, delays[retryCount]));
+        return generateCaptionsWithRetry(retryCount + 1);
+      }
+      throw new Error("ระบบ AI ขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้งครับ");
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.restaurantName || !formData.reviewDetails) {
+      setError('กรุณากรอกชื่อสิ่งที่จะรีวิวและรายละเอียดให้ครบถ้วนครับ');
+      return;
+    }
+    setError('');
+    setIsGenerating(true);
+    setCaptions(null);
+
+    try {
+      const generatedData = await generateCaptionsWithRetry();
+      setCaptions(generatedData);
+      setActiveTab('facebook');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const tabsData = [
+    { id: 'facebook', label: 'Facebook', icon: Facebook, color: 'text-blue-600', activeBg: 'bg-blue-600', activeText: 'text-white' },
+    { id: 'instagram', label: 'Instagram', icon: Instagram, color: 'text-pink-600', activeBg: 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600', activeText: 'text-white' },
+    { id: 'tiktok', label: 'TikTok', icon: Video, color: 'text-gray-900', activeBg: 'bg-black', activeText: 'text-white' },
+    { id: 'youtube', label: 'YouTube', icon: Youtube, color: 'text-red-600', activeBg: 'bg-red-600', activeText: 'text-white' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-slate-100/50 text-slate-800 font-sans selection:bg-indigo-100 selection:text-indigo-900 pb-12">
+      
+      {/* 🌟 Header Section */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-200">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-violet-600 leading-tight">
+                CAPOST
+              </h1>
+              <p className="text-[11px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">
+                AI Content Gen <span className="text-indigo-300 mx-1">•</span> May 2026 Update <span className="text-indigo-300 mx-1">•</span> By <span className="text-indigo-600">SwSw Visuals Co</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+          
+          {}
+          {/* 📱 ส่วนที่ 1: แผงควบคุม (Control Panel - Redesigned) */}
+          <div className="xl:col-span-5 space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              
+              {/* --- การ์ดที่ 1: ข้อมูลหลัก --- */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="bg-slate-50/80 px-5 py-3.5 border-b border-slate-100 flex items-center space-x-2">
+                  <div className="bg-indigo-100 text-indigo-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                  <h2 className="font-semibold text-slate-800">ข้อมูลเนื้อหา (Content)</h2>
+                </div>
+                
+                <div className="p-5 space-y-5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">หมวดหมู่</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { id: 'ร้านอาหาร (Food)', label: 'อาหาร', icon: Utensils },
+                        { id: 'สินค้า/ไอเทม (Product)', label: 'สินค้า', icon: ShoppingBag },
+                        { id: 'สถานที่/ท่องเที่ยว (Place)', label: 'สถานที่', icon: Map },
+                        { id: 'บริการ (Service)', label: 'บริการ', icon: Briefcase },
+                        { id: 'ทั่วไป/อิสระ (General)', label: 'ทั่วไป', icon: Zap },
+                      ].map(cat => {
+                        const Icon = cat.icon;
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setCategory(cat.id)}
+                            className={`px-3 py-2 rounded-lg border text-sm flex items-center space-x-1.5 transition-all ${
+                              category === cat.id
+                                ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-medium'
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                            <span>{cat.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">หัวข้อหลัก</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                      placeholder="เช่น ชื่อร้าน, ชื่อสินค้า, ชื่อคลินิก..."
+                      value={formData.restaurantName}
+                      onChange={(e) => setFormData({ ...formData, restaurantName: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">รายละเอียด / จุดเด่น</label>
+                    <textarea
+                      rows="3"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none"
+                      placeholder="พิมพ์สั้นๆ เช่น ลองใช้แล้วหน้าเนียนมาก ราคา 390 บาท..."
+                      value={formData.reviewDetails}
+                      onChange={(e) => setFormData({ ...formData, reviewDetails: e.target.value })}
+                    ></textarea>
+                  </div>
+                </div>
+              </div>
+
+              {/* --- การ์ดที่ 2: ตัวตนผู้เล่า (Persona) - ใหม่ล่าสุด --- */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="bg-slate-50/80 px-5 py-3.5 border-b border-slate-100 flex items-center space-x-2">
+                  <div className="bg-violet-100 text-violet-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                  <h2 className="font-semibold text-slate-800">มุมมองผู้เล่า (Persona)</h2>
+                </div>
+                
+                <div className="p-5 space-y-5">
+                  {/* POV */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">มุมมอง (POV)</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {[
+                        { id: 'บุคคลที่ 1 (เล่าประสบการณ์ตัวเอง / ร้านโปรโมทตัวเอง)', label: 'บุคคลที่ 1 (เรา/ฉัน/แบรนด์)', icon: User },
+                        { id: 'บุคคลที่ 3 (รีวิวถึงคนอื่น / พูดถึงแบรนด์อื่น)', label: 'บุคคลที่ 3 (เขา/ร้านนั้น)', icon: Users }
+                      ].map(p => {
+                        const Icon = p.icon;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setPov(p.id)}
+                            className={`px-3 py-3 rounded-xl border text-sm flex flex-col items-center justify-center space-y-1.5 transition-all text-center ${
+                              pov === p.id 
+                                ? 'bg-violet-50 border-violet-500 text-violet-700 font-medium' 
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Icon className="w-5 h-5 mb-1" />
+                            <span>{p.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Gender */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">สรรพนาม / เพศ</label>
+                    <div className="flex bg-slate-100 p-1.5 rounded-xl">
+                      {[
+                        { id: 'ชาย (ผม/ครับ)', label: '👨 ชาย (ครับ)' },
+                        { id: 'หญิง (ฉัน/เรา/ค่ะ/คะ)', label: '👩 หญิง (ค่ะ)' },
+                        { id: 'กลางๆ (เรา/พวกเรา/ไม่มีหางเสียง)', label: '🧑 กลางๆ' }
+                      ].map((g) => (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => setGender(g.id)}
+                          className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
+                            gender === g.id 
+                              ? 'bg-white text-violet-700 shadow-sm border border-slate-200/50' 
+                              : 'text-slate-500 hover:text-slate-700'
+                          }`}
+                        >
+                          {g.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* --- การ์ดที่ 3: สไตล์การเขียน (Style) --- */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="bg-slate-50/80 px-5 py-3.5 border-b border-slate-100 flex items-center space-x-2">
+                  <div className="bg-amber-100 text-amber-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">3</div>
+                  <h2 className="font-semibold text-slate-800">สไตล์การเขียน (Style)</h2>
+                </div>
+                
+                <div className="p-5 space-y-5">
+                  {/* Tone */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">น้ำเสียง (Tone)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'เป็นกันเอง (Friendly)', label: '😊 เป็นกันเอง' },
+                        { id: 'ทางการ (Professional)', label: '👔 ทางการ' },
+                        { id: 'อวยยศ น่ากินมาก (Enthusiastic)', label: '✨ อวยยศขั้นสุด' },
+                        { id: 'สายฮา เมาท์มอย (Funny)', label: '🤣 สายฮาเมาท์' },
+                        { id: 'ศัพท์กะเทย / GenZ (Sassy / GenZ Slang)', label: '💅 ศัพท์ GenZ (ฮิต)' },
+                        { id: 'ภาษาลู (Lu Language)', label: '🗣️ ภาษาลู' }
+                      ].map(t => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setTone(t.id)}
+                          className={`px-2 py-2 rounded-lg border text-xs font-medium flex items-center justify-center transition-all ${
+                            tone === t.id 
+                              ? 'bg-amber-50 border-amber-500 text-amber-700' 
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Format */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">รูปแบบ (Format)</label>
+                    <div className="flex bg-slate-100 p-1.5 rounded-xl">
+                      {[
+                        { id: 'แบ่งหัวข้อ (Structured)', label: '📋 แบ่งหัวข้อชัดเจน' },
+                        { id: 'เล่าเรื่องต่อเนื่อง (Storytelling)', label: '✍️ เล่าเรื่องบรรยาย' }
+                      ].map((f) => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => setFormat(f.id)}
+                          className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
+                            format === f.id 
+                              ? 'bg-white text-amber-700 shadow-sm border border-slate-200/50' 
+                              : 'text-slate-500 hover:text-slate-700'
+                          }`}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Language & Length */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">ภาษา</label>
+                      <select 
+                        value={language} 
+                        onChange={(e) => setLanguage(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                      >
+                        <option value="Thai">🇹🇭 ไทย</option>
+                        <option value="English">🇬🇧 English</option>
+                        <option value="Chinese">🇨🇳 中文</option>
+                        <option value="Korean">🇰🇷 한국어</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">ความยาว</label>
+                      <select 
+                        value={length} 
+                        onChange={(e) => setLength(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                      >
+                        <option value="สั้น กระชับ (Short)">สั้น กระชับ</option>
+                        <option value="พอดีๆ (Medium)">พอดีๆ</option>
+                        <option value="ยาว ละเอียด (Long)">ยาว ละเอียด</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="flex items-start space-x-2 text-rose-600 bg-rose-50 p-4 rounded-2xl text-sm border border-rose-100 shadow-sm">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isGenerating}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-4 px-4 rounded-2xl flex items-center justify-center space-x-2 transition-all shadow-xl shadow-slate-200 disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98]"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>AI กำลังประมวลผล...</span>
+                  </>
+                ) : (
+                  <>
+                    <Megaphone className="w-5 h-5" />
+                    <span>เริ่มสร้างแคปชั่น</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+
+          {/* 💻 ส่วนที่ 2: พื้นที่แสดงผล (Result Dashboard) */}
+          <div className="xl:col-span-7 h-full">
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 h-full min-h-[700px] flex flex-col overflow-hidden">
+              
+              {!captions && !isGenerating ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 text-center bg-slate-50/30">
+                  <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 border border-slate-100 shadow-sm">
+                    <LayoutTemplate className="w-10 h-10 text-slate-300" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-700 mb-2">ผลลัพธ์แคปชั่นจะแสดงที่นี่</h3>
+                  <p className="text-sm max-w-sm text-slate-500">
+                    ตั้งค่า 3 ขั้นตอนทางด้านซ้ายให้เรียบร้อย แล้วกดสร้างแคปชั่น AI จะปรับแต่งเนื้อหาให้เข้ากับทุกแพลตฟอร์มอย่างมืออาชีพ
+                  </p>
+                </div>
+              ) : isGenerating ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-indigo-500 p-8 bg-slate-50/30">
+                  <div className="relative w-20 h-20 mb-6">
+                    <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-75"></div>
+                    <div className="relative bg-white w-20 h-20 rounded-full border border-indigo-100 shadow-sm flex items-center justify-center">
+                      <Sparkles className="w-8 h-8 text-indigo-500 animate-pulse" />
+                    </div>
+                  </div>
+                  <p className="font-semibold text-lg animate-pulse text-indigo-600">กำลังสวมบทบาทนักเขียน...</p>
+                  <p className="text-sm text-slate-400 mt-2">อาจใช้เวลาสักครู่ กรุณารอสักนิดครับ</p>
+                </div>
+              ) : (
+                <>
+                  {/* Custom Tabs Design */}
+                  <div className="flex px-4 pt-4 border-b border-slate-200 bg-slate-50/50 space-x-2 overflow-x-auto scrollbar-hide">
+                    {tabsData.map((tab) => {
+                      const isActive = activeTab === tab.id;
+                      const Icon = tab.icon;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveTab(tab.id)}
+                          className={`flex items-center space-x-2 px-5 py-3 rounded-t-xl font-medium text-sm transition-all border-t border-x ${
+                            isActive 
+                              ? `${tab.activeBg} ${tab.activeText} border-transparent shadow-sm` 
+                              : `bg-white border-slate-200 text-slate-500 hover:bg-slate-100`
+                          }`}
+                        >
+                          <Icon className={`w-4 h-4 ${isActive ? 'text-white' : tab.color}`} />
+                          <span>{tab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex-1 p-6 bg-slate-50/30 relative">
+                    {tabsData.map((tab) => {
+                      if (activeTab !== tab.id) return null;
+                      return (
+                        <div key={tab.id} className="animate-in fade-in zoom-in-95 duration-200 h-full flex flex-col">
+                          <div className={`flex-1 p-6 rounded-2xl border bg-white shadow-sm ring-1 ring-black/5`}>
+                            <div className="whitespace-pre-wrap text-slate-700 text-[15px] leading-relaxed font-sans">
+                              {captions[tab.id]}
+                            </div>
+                          </div>
+                          
+                          <div className="mt-6 flex justify-end">
+                            <button
+                              onClick={() => handleCopy(captions[tab.id], tab.id)}
+                              className={`flex items-center space-x-2 px-6 py-3.5 rounded-xl font-semibold transition-all shadow-sm
+                                ${copiedPlatform === tab.id 
+                                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' 
+                                  : 'bg-slate-900 hover:bg-slate-800 text-white shadow-slate-200'
+                                }`}
+                            >
+                              {copiedPlatform === tab.id ? (
+                                <>
+                                  <Check className="w-5 h-5" />
+                                  <span>คัดลอกสำเร็จแล้ว!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-5 h-5" />
+                                  <span>คัดลอกไปโพสต์</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
